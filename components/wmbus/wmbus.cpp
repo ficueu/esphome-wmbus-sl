@@ -31,18 +31,12 @@ namespace wmbus {
   }
 
   void WMBusComponent::setup() {
-    ESP_LOGE("wmbus", "start");
     this->high_freq_.start();
-    ESP_LOGE("wmbus", "stage1");
     if (this->led_pin_ != nullptr) {
-      ESP_LOGE("wmbus", "stage2");
       this->led_pin_->setup();
-      ESP_LOGE("wmbus", "stage3");
       this->led_pin_->digital_write(false);
-      ESP_LOGE("wmbus", "stage4");
       this->led_on_ = false;
     }
-    ESP_LOGE("wmbus", "stage5");
     if (!rf_mbus_.init(this->spi_conf_.mosi->get_pin(), this->spi_conf_.miso->get_pin(),
                        this->spi_conf_.clk->get_pin(),  this->spi_conf_.cs->get_pin(),
                        this->spi_conf_.gdo0->get_pin(), this->spi_conf_.gdo2->get_pin(),
@@ -51,7 +45,6 @@ namespace wmbus {
       ESP_LOGE(TAG, "RF chip initialization failed");
       return;
     }
-    ESP_LOGE("wmbus", "stage6");
 #ifdef USE_WMBUS_MQTT
     this->mqtt_client_.setClient(this->tcp_client_);
     this->mqtt_client_.setServer(this->mqtt_->ip, this->mqtt_->port);
