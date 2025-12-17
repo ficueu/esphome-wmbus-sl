@@ -196,7 +196,7 @@ async def to_code(config):
         cg.add(var.set_led_blink_time(config[CONF_LED_BLINK_TIME].total_milliseconds))
 
     cg.add_library("SPI", None)
-    cg.add_library("LSatan/SmartRC-CC1101-Driver-Lib", "2.5.7")
+    cg.add_library("ficueu/SmartRC-CC1101-Driver-Lib", "2.5.7")
 
     cg.add_platformio_option("build_src_filter", ["+<*>", "-<.git/>", "-<.svn/>"])
 
