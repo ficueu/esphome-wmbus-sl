@@ -31,6 +31,7 @@ namespace wmbus {
   }
 
   void WMBusComponent::setup() {
+    ESP_LOGE(TAG, "setup start");
     this->high_freq_.start();
     if (this->led_pin_ != nullptr) {
       this->led_pin_->setup();
