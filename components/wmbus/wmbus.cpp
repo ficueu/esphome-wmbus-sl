@@ -51,6 +51,7 @@ namespace wmbus {
       ESP_LOGE(TAG, "RF chip initialization failed");
       return;
     }
+    ESP_LOGE("wmbus", "stage6");
 #ifdef USE_WMBUS_MQTT
     this->mqtt_client_.setClient(this->tcp_client_);
     this->mqtt_client_.setServer(this->mqtt_->ip, this->mqtt_->port);
