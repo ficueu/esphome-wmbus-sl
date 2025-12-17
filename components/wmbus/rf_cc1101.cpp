@@ -48,16 +48,17 @@ namespace esphome
       this->gdo2 = gdo2;
       pinMode(this->gdo0, INPUT);
       pinMode(this->gdo2, INPUT);
+      ESP_LOGE("wmbus", "init stage1");
       ELECHOUSE_cc1101.setSpiPin(clk, miso, mosi, cs);
-
+      ESP_LOGE("wmbus", "init stage2");
       ELECHOUSE_cc1101.Init();
-
+      ESP_LOGE("wmbus", "init stage3");
       for (uint8_t i = 0; i < TMODE_RF_SETTINGS_LEN; i++)
       {
         ELECHOUSE_cc1101.SpiWriteReg(TMODE_RF_SETTINGS_BYTES[i << 1],
                                      TMODE_RF_SETTINGS_BYTES[(i << 1) + 1]);
       }
-
+      ESP_LOGE("wmbus", "init stage4");
       uint32_t freq_reg = uint32_t(freq * 65536 / 26);
       uint8_t freq2 = (freq_reg >> 16) & 0xFF;
       uint8_t freq1 = (freq_reg >> 8) & 0xFF;
