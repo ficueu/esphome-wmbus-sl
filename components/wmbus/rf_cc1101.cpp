@@ -7,6 +7,38 @@ namespace esphome
 
     static const char *TAG = "rxLoop";
 
+    static bool wait_marcstate_(const char *phase, uint8_t target, uint32_t timeout_ms)
+    {
+      const uint32_t t0 = millis();
+      uint32_t last_log = t0;
+
+      while (true)
+      {
+        const uint8_t marc = ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE);
+        if (marc == target)
+          return true;
+
+        const uint32_t now = millis();
+
+        // co ~250ms daj log "żyję i czekam"
+        if (now - last_log >= 250)
+        {
+          ESP_LOGW(TAG, "%s: waiting for MARCSTATE=0x%02X, now=0x%02X (elapsed=%ums)",
+                   phase, target, marc, (unsigned)(now - t0));
+          last_log = now;
+        }
+
+        if (now - t0 >= timeout_ms)
+        {
+          ESP_LOGE(TAG, "%s: TIMEOUT waiting for MARCSTATE=0x%02X, last=0x%02X (elapsed=%ums)",
+                   phase, target, marc, (unsigned)(now - t0));
+          return false;
+        }
+
+        delay(1); // krytyczne: oddaje CPU -> watchdog nie strzeli
+      }
+    }
+
     bool RxLoop::init(uint8_t mosi, uint8_t miso, uint8_t clk, uint8_t cs,
                       uint8_t gdo0, uint8_t gdo2, float freq, bool syncMode)
     {
@@ -62,6 +94,10 @@ namespace esphome
     {
       do
       {
+        ESP_LOGV(TAG, "task(): state=%d gdo0=%d gdo2=%d marc=0x%02X",
+                 rxLoop.state, digitalRead(this->gdo0), digitalRead(this->gdo2),
+                 ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE));
+
         switch (rxLoop.state)
         {
         case INIT_RX:
@@ -72,6 +108,7 @@ namespace esphome
         case WAIT_FOR_SYNC:
           if (digitalRead(this->gdo2))
           { // assert when SYNC detected
+            ESP_LOGD(TAG, "SYNC detected (GDO2=1) -> WAIT_FOR_DATA");
             rxLoop.state = WAIT_FOR_DATA;
             sync_time_ = millis();
           }
@@ -81,6 +118,7 @@ namespace esphome
         case WAIT_FOR_DATA:
           if (digitalRead(this->gdo0))
           { // assert when Rx FIFO buffer threshold reached
+            ESP_LOGD(TAG, "FIFO threshold (GDO0=1) -> parse preamble");
             uint8_t preamble[2];
             // Read the 3 first bytes,
             ELECHOUSE_cc1101.SpiReadBurstReg(CC1101_RXFIFO, rxLoop.pByteIndex, 3);
@@ -181,6 +219,7 @@ namespace esphome
         // end of packet in length mode
         if ((!overfl) && (!digitalRead(gdo2)) && (rxLoop.state > WAIT_FOR_DATA))
         {
+          ESP_LOGD(TAG, "End of packet detected -> read remaining bytesLeft=%d", rxLoop.bytesLeft);
           ELECHOUSE_cc1101.SpiReadBurstReg(CC1101_RXFIFO, rxLoop.pByteIndex, (uint8_t)rxLoop.bytesLeft);
           rxLoop.bytesRx += rxLoop.bytesLeft;
           data_in.length = rxLoop.bytesRx;
@@ -230,42 +269,50 @@ namespace esphome
     {
       // waiting to long for next part of data?
       bool reinit_needed = ((millis() - sync_time_) > max_wait_time_) ? true : false;
-      uint32_t t0 = millis();
+
+      const uint8_t marc0 = ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE);
+      ESP_LOGD(TAG, "start(force=%d) reinit_needed=%d marc0=0x%02X gdo0=%d gdo2=%d",
+               force, reinit_needed, marc0,
+               digitalRead(this->gdo0), digitalRead(this->gdo2));
+
       if (!force)
       {
         if (!reinit_needed)
         {
           // already in RX?
-          if (ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE) == MARCSTATE_RX)
+          if (marc0 == MARCSTATE_RX)
           {
+            ESP_LOGV(TAG, "start(): already in RX, skipping reinit");
             return false;
           }
         }
       }
+
       // init RX here, each time we're idle
       rxLoop.state = INIT_RX;
       sync_time_ = millis();
       max_wait_time_ = extra_time_;
 
+      ESP_LOGD(TAG, "start(): SIDLE");
       ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-      // while((ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE) != MARCSTATE_IDLE));
-      if (!wait_marcstate_(MARCSTATE_IDLE, 200))
+      if (!wait_marcstate_("SIDLE->IDLE", MARCSTATE_IDLE, 500))
       {
-        ESP_LOGE(TAG, "CC1101 stuck waiting for IDLE (MARCSTATE=%02X)",
-                 ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE));
-        return false; // albo force reinit / restart CC1101
+        // nie wchodzimy w busy-loop -> brak WDT, mamy log i wyjście
+        return false;
       }
+
+      ESP_LOGD(TAG, "start(): flush FIFOs");
       ELECHOUSE_cc1101.SpiStrobe(CC1101_SFTX); // flush Tx FIFO
       ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX); // flush Rx FIFO
 
       // Initialize RX info variable
-      rxLoop.lengthField = 0;           // Length Field in the wM-Bus packet
-      rxLoop.length = 0;                // Total length of bytes to receive packet
-      rxLoop.bytesLeft = 0;             // Bytes left to to be read from the Rx FIFO
-      rxLoop.bytesRx = 0;               // Bytes read from Rx FIFO
-      rxLoop.pByteIndex = data_in.data; // Pointer to current position in the byte array
-      rxLoop.complete = false;          // Packet received
-      rxLoop.cc1101Mode = INFINITE;     // Infinite or fixed CC1101 packet mode
+      rxLoop.lengthField = 0;
+      rxLoop.length = 0;
+      rxLoop.bytesLeft = 0;
+      rxLoop.bytesRx = 0;
+      rxLoop.pByteIndex = data_in.data;
+      rxLoop.complete = false;
+      rxLoop.cc1101Mode = INFINITE;
 
       this->returnFrame.frame.clear();
       this->returnFrame.rssi = 0;
@@ -279,24 +326,22 @@ namespace esphome
       data_in.mode = 'X';
       data_in.block = 'X';
 
+      ESP_LOGD(TAG, "start(): set FIFO/PKT regs (FIFOTHR, PKTCTRL0)");
       // Set Rx FIFO threshold to 4 bytes
       ELECHOUSE_cc1101.SpiWriteReg(CC1101_FIFOTHR, RX_FIFO_START_THRESHOLD);
       // Set infinite length
       ELECHOUSE_cc1101.SpiWriteReg(CC1101_PKTCTRL0, INFINITE_PACKET_LENGTH);
 
+      ESP_LOGD(TAG, "start(): SRX");
       ELECHOUSE_cc1101.SpiStrobe(CC1101_SRX);
-      // while ((ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE) != MARCSTATE_RX))
-      //   ;
-      if (!wait_marcstate_(MARCSTATE_RX, 200))
+      if (!wait_marcstate_("SRX->RX", MARCSTATE_RX, 500))
       {
-        ESP_LOGE(TAG, "CC1101 stuck waiting for RX (MARCSTATE=%02X)",
-                 ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE));
         return false;
       }
 
       rxLoop.state = WAIT_FOR_SYNC;
-
-      return true; // this will indicate we just have re-started Rx
+      ESP_LOGD(TAG, "start(): RX armed, state=WAIT_FOR_SYNC");
+      return true; // re-started Rx
     }
 
   }
