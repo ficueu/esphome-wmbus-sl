@@ -29,9 +29,12 @@
 
 #include "utils.h"
 
+#ifdef USE_ARDUINO
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
-
+#else
+#error "This component requires Arduino framework. Please set 'framework: type: arduino' in your yaml."
+#endif
 
 namespace esphome {
 namespace wmbus {
@@ -182,8 +185,10 @@ namespace wmbus {
       bool sync_mode_{false};
       std::map<uint32_t, WMBusListener *> wmbus_listeners_{};
       std::vector<Client> clients_{};
+#ifdef USE_ARDUINO
       WiFiClient tcp_client_;
       WiFiUDP udp_client_;
+#endif
       time::RealTimeClock *time_{nullptr};
       uint32_t led_blink_time_{0};
       uint32_t led_on_millis_{0};
