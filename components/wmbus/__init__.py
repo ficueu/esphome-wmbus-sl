@@ -136,7 +136,7 @@
             cv.Optional(CONF_WMBUS_MQTT_RAW_FORMAT, default="JSON"): cv.templatable(validate_raw_format),
             cv.Optional(CONF_WMBUS_MQTT_RAW_PARSED, default=True): cv.boolean,
         }),
-    validate_config
+        validate_config
     )
 
     def safe_ip(ip):
