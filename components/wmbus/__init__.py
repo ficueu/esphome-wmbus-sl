@@ -80,8 +80,9 @@ TRANSPORT = {
 }
 validate_transport = cv.enum(TRANSPORT, upper=True)
 
-def validate_platform(config):
-    cv.check_pkg_installed("wifi")
+def validate_config(config):
+    if CONF_CLIENTS in config:
+        cv.check_pkg_installed("wifi") 
     return config
 
 CLIENT_SCHEMA = cv.Schema({
@@ -129,7 +130,7 @@ CONFIG_SCHEMA = cv.All(
         cv.Optional(CONF_WMBUS_MQTT_RAW_FORMAT, default="JSON"): cv.templatable(validate_raw_format),
         cv.Optional(CONF_WMBUS_MQTT_RAW_PARSED, default=True): cv.boolean,
     }),
-    validate_platform
+    validate_config
 )
 
 def safe_ip(ip):
