@@ -1,3 +1,5 @@
+Forked from: https://github.com/SzczepanLeon/esphome-components
+
 # Szczepan's esphome custom components
 
 This repository contains a collection of my custom components
