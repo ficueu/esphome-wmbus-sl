@@ -81,7 +81,6 @@ TRANSPORT = {
 validate_transport = cv.enum(TRANSPORT, upper=True)
 
 def validate_platform(config):
-    # Wersja 2026.2+ wymaga jawnego sprawdzenia frameworka dla WiFiClient
     cv.check_pkg_installed("wifi")
     return config
 
