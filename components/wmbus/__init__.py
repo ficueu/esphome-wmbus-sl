@@ -51,7 +51,7 @@ CONF_WIFI_REF = "wmbus_wifi_id"
 CODEOWNERS = ["@SzczepanLeon"]
 
 DEPENDENCIES = ["time", "wifi", "network"]
-AUTO_LOAD = ["sensor", "text_sensor"]
+AUTO_LOAD = ["sensor", "text_sensor", "network"]
 
 wmbus_ns = cg.esphome_ns.namespace('wmbus')
 WMBusComponent = wmbus_ns.class_('WMBusComponent', cg.Component)
@@ -139,6 +139,8 @@ def safe_ip(ip):
     return IPAddress(str(ip))
 
 async def to_code(config):
+    cg.add_library("WiFi", None)
+    cg.add_define("USE_WIFI")
     var_adv = cg.new_Pvariable(config[CONF_INFO_COMP_ID])
     await cg.register_component(var_adv, {})
 
