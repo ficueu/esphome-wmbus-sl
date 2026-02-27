@@ -50,7 +50,7 @@ CONF_WIFI_REF = "wmbus_wifi_id"
 
 CODEOWNERS = ["@SzczepanLeon"]
 
-DEPENDENCIES = ["time"]
+DEPENDENCIES = ["time", "wifi", "network"]
 AUTO_LOAD = ["sensor", "text_sensor"]
 
 wmbus_ns = cg.esphome_ns.namespace('wmbus')
@@ -139,7 +139,6 @@ def safe_ip(ip):
     return IPAddress(str(ip))
 
 async def to_code(config):
-    cg.add_define("USE_ARDUINO")
     var_adv = cg.new_Pvariable(config[CONF_INFO_COMP_ID])
     await cg.register_component(var_adv, {})
 
