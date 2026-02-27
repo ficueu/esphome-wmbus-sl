@@ -84,6 +84,12 @@
         # Wersja 2026.2+ wymaga jawnego sprawdzenia frameworka dla WiFiClient
         cv.check_pkg_installed("wifi")
         return config
+    
+    def validate_config(config):
+        if CONF_CLIENTS in config:
+            # Wersja 2026+ wymaga tego, by pakiety sieciowe były zainicjowane
+            cv.check_pkg_installed("wifi") 
+        return config
 
     CLIENT_SCHEMA = cv.Schema({
         cv.GenerateID():                              cv.declare_id(Client),
@@ -130,7 +136,8 @@
         cv.Optional(CONF_WMBUS_MQTT_RAW_FORMAT, default="JSON"): cv.templatable(validate_raw_format),
         cv.Optional(CONF_WMBUS_MQTT_RAW_PARSED, default=True): cv.boolean,
     }),
-    validate_platform 
+    validate_platform,
+    validate_config
 )
 
     def safe_ip(ip):
