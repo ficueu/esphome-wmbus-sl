@@ -136,6 +136,7 @@ CONFIG_SCHEMA = cv.All(
         cv.Optional(CONF_WMBUS_MQTT_RAW_FORMAT, default="JSON"): cv.templatable(validate_raw_format),
         cv.Optional(CONF_WMBUS_MQTT_RAW_PARSED, default=True): cv.boolean,
     }),
+    validate_platform,
     validate_config
 )
 
